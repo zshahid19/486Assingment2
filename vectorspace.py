@@ -1,6 +1,8 @@
 import sys
 import re
 from PorterStemmer import PorterStemmer
+import os
+
 
 
 
@@ -77,8 +79,8 @@ def tokenizeText(cleaned_text):
 from PorterStemmer import PorterStemmer
 import math
 
-def indexDocument(doc_id, doc_content, doc_weighting_scheme, query_weighting_scheme, inverted_index, doc_lengths):
-    # Preprocess the document content
+def indexDocument(doc_id, doc_content, doc_weighting_scheme, inverted_index, doc_lengths):
+        # Preprocess the document content
     cleaned_content = removeSGML(doc_content)
     tokens = tokenizeText(cleaned_content)
 
@@ -100,13 +102,19 @@ def indexDocument(doc_id, doc_content, doc_weighting_scheme, query_weighting_sch
             tf = inverted_index[token][doc_id]
             idf = math.log((len(doc_lengths) + 1) / (len(inverted_index[token]) + 1))
             inverted_index[token][doc_id] = tf * idf
+    elif doc_weighting_scheme == "nfx":
+        max_tf = max(inverted_index[token][doc_id] for token in stemmed_tokens)
+        for token in stemmed_tokens:
+            tf = inverted_index[token][doc_id] / max_tf
+            idf = math.log((len(doc_lengths) + 1) / (len(inverted_index[token]) + 1))
+            inverted_index[token][doc_id] = tf * idf
 
     # Update document length (used for normalization in some weighting schemes)
     doc_length = sum([inverted_index[token][doc_id]**2 for token in stemmed_tokens])
     doc_lengths[doc_id] = math.sqrt(doc_length)
 
 
-def retrieveDocuments(query, inverted_index, doc_weighting_scheme, query_weighting_scheme, doc_lengths):
+def retrieveDocuments(query, inverted_index, query_weighting_scheme, doc_lengths):
     # Preprocess the query
     cleaned_query = removeSGML(query)
     query_tokens = tokenizeText(cleaned_query)
@@ -128,13 +136,13 @@ def retrieveDocuments(query, inverted_index, doc_weighting_scheme, query_weighti
         for token in stemmed_query_tokens:
             if token in inverted_index and doc_id in inverted_index[token]:
                 # Calculate term weights for the query and document
-                if doc_weighting_scheme == "tfc":
-                    doc_term_weight = inverted_index[token][doc_id]
-                else:
-                    doc_term_weight = 0  # Placeholder for other weighting schemes
-
+                doc_term_weight = inverted_index[token][doc_id]
                 if query_weighting_scheme == "tfx":
-                    query_term_weight = 1  # Placeholder for query weighting scheme
+                    query_term_weight = 1  # Placeholder for tfx weighting scheme
+                elif query_weighting_scheme == "bpx":
+                    query_term_weight = 1 if token in query_tokens else 0
+                    n = len(inverted_index[token])
+                    idf = math.log((len(doc_lengths) + 1) / (len(inverted_index[token]) + 1))
                 else:
                     query_term_weight = 0
 
@@ -148,17 +156,17 @@ def retrieveDocuments(query, inverted_index, doc_weighting_scheme, query_weighti
     return similarity_scores
 
 
-import os
 
 def main():
-    if len(sys.argv) < 5:
-        print("Usage: vectorspace.py <document_weighting> <query_weighting> <doc_collection_folder> <query_file>")
+    if len(sys.argv) < 6:
+        print("Usage: vectorspace.py <document_weighting> <query_weighting> <doc_collection_folder> <query_file> <output_file>")
         sys.exit(1)
 
     doc_weighting = sys.argv[1]
     query_weighting = sys.argv[2]
     doc_collection_folder = sys.argv[3]
     query_file = sys.argv[4]
+    output_file = sys.argv[5]
 
     inverted_index = {}
     doc_lengths = {}
@@ -169,22 +177,20 @@ def main():
         if os.path.isfile(filepath):
             with open(filepath, 'r') as file:
                 content = file.read()
-                indexDocument(filename, content, doc_weighting, query_weighting, inverted_index, doc_lengths)
+                indexDocument(filename, content, doc_weighting, inverted_index, doc_lengths)
 
-    # Prepare the output file
-    output_filename = f"cranfield.{doc_weighting}.{query_weighting}.output"
-    with open(output_filename, 'w') as output_file, open(query_file, 'r') as q_file:
-        query_id = 1
-        for query in q_file.readlines():
-            similarity_scores = retrieveDocuments(query, inverted_index, doc_weighting, query_weighting, doc_lengths)
-            # Sort documents by similarity score in descending order
-            sorted_scores = sorted(similarity_scores.items(), key=lambda item: item[1], reverse=True)
-            for doc_id, score in sorted_scores:
-                output_file.write(f"{query_id} {doc_id} {score:.2f}\n")
-            query_id += 1
-
-if __name__ == "__main__":
-    main()
+    # Open the output file for writing
+    with open(output_file, 'w') as output:
+        # Open the file with queries and retrieve relevant documents for each query
+        with open(query_file, 'r') as file:
+            query_id = 1
+            for query in file.readlines():
+                similarity_scores = retrieveDocuments(query, inverted_index, query_weighting, doc_lengths)
+                # Sort documents by similarity score in descending order
+                sorted_scores = sorted(similarity_scores.items(), key=lambda item: item[1], reverse=True)
+                for doc_id, score in sorted_scores:
+                    output.write(f"{query_id} {doc_id} {score:.2f}\n")
+                query_id += 1
 
 if __name__ == "__main__":
     main()
