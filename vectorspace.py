@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
+#zshahid
 import sys
 import re
-from PorterStemmer import PorterStemmer
 import os
-
+import math
+from PorterStemmer import PorterStemmer
 
 
 
@@ -76,19 +78,17 @@ def tokenizeText(cleaned_text):
 
 
 
-from PorterStemmer import PorterStemmer
-import math
-
 def indexDocument(doc_id, doc_content, doc_weighting_scheme, inverted_index, doc_lengths):
-        # Preprocess the document content
+    # Preprocess the content
     cleaned_content = removeSGML(doc_content)
     tokens = tokenizeText(cleaned_content)
+    # print(tokens)
 
-    # Apply stemming using Porter Stemmer
+    # stemming  using porterstemmer
     stemmer = PorterStemmer()
     stemmed_tokens = [stemmer.stem(token, 0, len(token) - 1) for token in tokens]
 
-    # Add tokens to the inverted index and compile counts for term weights
+    # adding tokens to the inverted index and counts for term weights
     for token in stemmed_tokens:
         if token not in inverted_index:
             inverted_index[token] = {}
@@ -96,7 +96,7 @@ def indexDocument(doc_id, doc_content, doc_weighting_scheme, inverted_index, doc
             inverted_index[token][doc_id] = 0
         inverted_index[token][doc_id] += 1
 
-    # Calculate term weights for the document based on the weighting scheme
+    # Calculating term weights for the document
     if doc_weighting_scheme == "tfc":
         for token in stemmed_tokens:
             tf = inverted_index[token][doc_id]
@@ -109,7 +109,7 @@ def indexDocument(doc_id, doc_content, doc_weighting_scheme, inverted_index, doc
             idf = math.log((len(doc_lengths) + 1) / (len(inverted_index[token]) + 1))
             inverted_index[token][doc_id] = tf * idf
 
-    # Update document length (used for normalization in some weighting schemes)
+    # Update document length for nomilization
     doc_length = sum([inverted_index[token][doc_id]**2 for token in stemmed_tokens])
     doc_lengths[doc_id] = math.sqrt(doc_length)
 
@@ -123,13 +123,20 @@ def retrieveDocuments(query, inverted_index, query_weighting_scheme, doc_lengths
     stemmer = PorterStemmer()
     stemmed_query_tokens = [stemmer.stem(token, 0, len(token) - 1) for token in query_tokens]
 
+    # Calculate term frequency for each term in the query
+    query_term_freq = {}
+    for token in stemmed_query_tokens:
+        if token not in query_term_freq:
+            query_term_freq[token] = 0
+        query_term_freq[token] += 1
+
     # Determine the set of documents that include at least one token from the query
     relevant_docs = set()
     for token in stemmed_query_tokens:
         if token in inverted_index:
             relevant_docs.update(inverted_index[token].keys())
 
-    # Calculate similarity scores between the query and each relevant document
+    #calculate similarity scores between the query and each relevant document
     similarity_scores = {}
     for doc_id in relevant_docs:
         score = 0
@@ -138,11 +145,14 @@ def retrieveDocuments(query, inverted_index, query_weighting_scheme, doc_lengths
                 # Calculate term weights for the query and document
                 doc_term_weight = inverted_index[token][doc_id]
                 if query_weighting_scheme == "tfx":
-                    query_term_weight = 1  # Placeholder for tfx weighting scheme
+                    query_term_weight = query_term_freq[token] 
                 elif query_weighting_scheme == "bpx":
-                    query_term_weight = 1 if token in query_tokens else 0
-                    n = len(inverted_index[token])
-                    idf = math.log((len(doc_lengths) + 1) / (len(inverted_index[token]) + 1))
+                    query_term_weight = 0
+                    if token in query_tokens:
+                        n = len(inverted_index[token])
+                        idf = math.log((len(doc_lengths) + 1) / (n + 1))
+                        # idf = math.log((len(doc_lengths) + 1) / (n))
+                        query_term_weight = idf
                 else:
                     query_term_weight = 0
 
@@ -157,16 +167,16 @@ def retrieveDocuments(query, inverted_index, query_weighting_scheme, doc_lengths
 
 
 
+
 def main():
-    if len(sys.argv) < 6:
-        print("Usage: vectorspace.py <document_weighting> <query_weighting> <doc_collection_folder> <query_file> <output_file>")
+    if len(sys.argv) < 5:
+        print("Usage: vectorspace.py <document_weighting(tfc/nfx)> <query_weighting(tfx/bpx)> <doc_collection_folder> <query_file>")
         sys.exit(1)
 
     doc_weighting = sys.argv[1]
     query_weighting = sys.argv[2]
     doc_collection_folder = sys.argv[3]
     query_file = sys.argv[4]
-    output_file = sys.argv[5]
 
     inverted_index = {}
     doc_lengths = {}
@@ -179,14 +189,15 @@ def main():
                 content = file.read()
                 indexDocument(filename, content, doc_weighting, inverted_index, doc_lengths)
 
-    # Open the output file for writing
-    with open(output_file, 'w') as output:
-        # Open the file with queries and retrieve relevant documents for each query
+    output_filename = f"cranfield.{doc_weighting}.{query_weighting}.output"
+
+    # write in output file
+    with open(output_filename, 'w') as output:
         with open(query_file, 'r') as file:
             query_id = 1
             for query in file.readlines():
                 similarity_scores = retrieveDocuments(query, inverted_index, query_weighting, doc_lengths)
-                # Sort documents by similarity score in descending order
+                #sort documents by similarity score in DESECENDING order
                 sorted_scores = sorted(similarity_scores.items(), key=lambda item: item[1], reverse=True)
                 for doc_id, score in sorted_scores:
                     output.write(f"{query_id} {doc_id} {score:.2f}\n")
@@ -194,3 +205,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -1,0 +1,4 @@
+Top 10 documents: Precision = 0.0302, Recall = 0.0467
+Top 50 documents: Precision = 0.0140, Recall = 0.1019
+Top 100 documents: Precision = 0.0085, Recall = 0.1220
+Top 500 documents: Precision = 0.0026, Recall = 0.1724

@@ -1,0 +1,40 @@
+Zaid Shahid
+zshahid
+
+Weighting Schemes:
+------------------
+1. NFX:
+   - Description: This weighting scheme uses a normalized term frequency and divides it by the maximum term frequency in the docuemnt.
+      this accounts for any variation in document lengths. Also the inverse docuemnt frequency is the same as normal tf-idf which is meant to help 
+      lower the weight of common words and highlight more important terms.
+   - Reasoning: The idea for choosing this one weighting scheme was to balance the term frequency for different docuemnt lenghts to make it more fair for the varrying 
+       document sizes while also keeping the the importance of rarer words.
+
+2. BPX:
+   - Description: The BPX weighting scheme keeps a terms weight binary and does not consider any term frequency. The inverse docuement frequency is calcualted as log ( (N-n)/n).
+   - Reasoning: Using binary presence simplifes the querry representation since it only focuses on the presence or lack of presence of a term. This can potentially be more effective for
+      shorter querries. While also using the logarithmic idf to help retain the highlighting rarer terms. 
+
+Macro-Averaged Precision and Recall:
+------------------------------------
+For TFC.TFX:
+Top 10 documents: Precision = 0.0302, Recall = 0.0467
+Top 50 documents: Precision = 0.0140, Recall = 0.1019
+Top 100 documents: Precision = 0.0085, Recall = 0.1220
+Top 500 documents: Precision = 0.0026, Recall = 0.1724
+
+
+For NFX.BPX:
+Top 10 documents: Precision = 0.0107, Recall = 0.0153
+Top 50 documents: Precision = 0.0080, Recall = 0.0526
+Top 100 documents: Precision = 0.0052, Recall = 0.0697
+Top 500 documents: Precision = 0.0021, Recall = 0.1253
+
+Comparison:
+-----------
+- From looking at the results TFC and TFX weighting performs better compared to the NFX and BPX. We can see this in the precision and the recall across all the results above. A reason why the
+  TFC/TFX is better could be attributed to the Term Frequency in the TFC. That makes it more effective at identifying relevant documents for any given query compared to using a normalized term frequency,
+  which does try to make up differences for documents of different lengths but might dilute significance with some terms. Another factor can be attributed to BPX compared to TFX. Since I used binary presence which only
+  considers if a term is present and not its frequency it results in a less accurate weighting compared to term frequency. Term frequency helps distinguish relevant docuemnts from irrelevant ones.
+  
+
